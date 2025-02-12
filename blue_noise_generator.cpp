@@ -106,6 +106,7 @@ private:
 	std::atomic<uint_least64_t>			_MTAcquiredRegions;
 	std::atomic<int>					_IterGuard;
 	IBlueNoiseGenProgressMonitor		*_ProgressMonitor;
+	bool                                 _forceExit = false;
 
 	// Solid Angle method parameters
 	static const size_t _DistanceToCheck;
@@ -510,6 +511,7 @@ BlueNoiseGenerator::EResult BlueNoiseGeneratorImpl::GenerateBlueNoise(	const Blu
 																		std::vector<float> &blueNoiseResult,
 																		IBlueNoiseGenProgressMonitor *progressMonitor)
 {
+	_forceExit = false;
 	if (generationParams.chosenMethod == BlueNoiseGeneratorParameters::Method_IndependantSlices)
 	{
 		return GenerateIndependantSlices(generationParams, whiteNoiseResult, blueNoiseResult, progressMonitor);
@@ -754,7 +756,14 @@ void BlueNoiseGeneratorImpl::ComputeBlueNoiseIncrementalMultiThreaded(size_t num
 			while (!finished)
 			{
 				LockIterGuard();
-				_ProgressMonitor->OnProgress(_IterTotal, _BestScore, _SwapCount, _SwapAttempt);
+				try
+				{
+					_ProgressMonitor->OnProgress(_IterTotal, _BestScore, _SwapCount, _SwapAttempt);
+				}
+				catch(const std::exception& e)
+				{
+					_forceExit = true; // abort early if exception
+				}
 				UnlockIterGuard();
 				std::this_thread::sleep_for(std::chrono::milliseconds(20)); // check once in a while
 			}
@@ -933,6 +942,7 @@ void BlueNoiseGeneratorImpl::ComputeBlueNoiseIncremental(size_t numIter)
 
 	for (size_t iter = 0; iter < numIter; ++iter)
 	{
+		if (_forceExit) return;
 		uint32_t num_swaps = _ActuallyUseMultithreading ? 1u : distInt(gen);
 		size_t swapedElemIndex[_MaxSwapedElemCount * 2];
 		size_t from[_MaxSwapedElemCount];
