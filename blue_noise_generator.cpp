@@ -720,9 +720,13 @@ void BlueNoiseGeneratorImpl::ComputeBlueNoise(size_t numIter)
 			_CurrentArray ^= 1;
 		}
 		++_IterTotal;
-		if (_ProgressMonitor)
+		if (_ProgressMonitor) try
 		{
 			_ProgressMonitor->OnProgress(_IterTotal, _BestScore, _SwapCount, _SwapAttempt);
+		}
+		catch(const std::exception& e)
+		{
+			return; // abort early
 		}
 	}
 }
@@ -1052,9 +1056,13 @@ void BlueNoiseGeneratorImpl::ComputeBlueNoiseIncremental(size_t numIter)
 
 		if (!_ActuallyUseMultithreading)
 		{
-			if (_ProgressMonitor)
+			if (_ProgressMonitor) try
 			{
 				_ProgressMonitor->OnProgress(_IterTotal, _BestScore, _SwapCount, _SwapAttempt);
+			}
+			catch(const std::exception &e)
+			{
+				return; // aborted by user
 			}
 		}
 	}
